@@ -1,5 +1,5 @@
 // Service Worker para BellaZo - Suporte Offline e Sincronização
-const CACHE_NAME = 'bellazo-v1';
+const CACHE_NAME = 'bellazo-v2';
 const urlsToCache = [
   '/',
   '/index.html',
