@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Controle Financeiro</title>
+    <title>BellaZo - Controle Financeiro</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1A3C38">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BellaZo">
     
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-    
-    <link class="favicon-png" rel="icon" type="image/png" sizes="192x192" href="1000320254.png">
-    <link class="favicon-png" rel="icon" type="image/png" sizes="512x512" href="1000320254.png">
-    <link class="manifest" href="manifest.json">
+    <link rel="shortcut icon" href="bellazo_icon.png" type="image/png">
+    <link rel="icon" type="image/png" sizes="192x192" href="bellazo_icon.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="bellazo_icon.png">
+    <link rel="apple-touch-icon" href="bellazo_icon.png">
+    <link rel="manifest" href="manifest.json">
 
     <!-- Importação da Fonte Cabin -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -671,6 +674,33 @@
             letter-spacing: 0.3px;
         }
         .btn-danger-clear:hover { background-color: rgba(186, 26, 26, 0.05); }
+
+        /* --- BOTÃO DE INSTALAÇÃO PWA --- */
+        #install-btn {
+            display: none;
+            padding: 12px 20px;
+            background-color: var(--verde);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        #install-btn.visible {
+            display: block;
+        }
+
+        #install-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        #install-btn:active {
+            background-color: rgba(0, 180, 102, 0.8);
+        }
     </style>
 </head>
 <body>
@@ -717,14 +747,11 @@
                 <div class="container">
                     <header>
                         <h1>Controle Financeiro</h1>                        
-    <button class="sync-icon-btn" id="menu-toggle-btn" onclick="toggleModal()" title="Sincronizar">
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-    </svg>
-</button>
-
-</button>
-
+                        <button class="sync-icon-btn" id="menu-toggle-btn" onclick="toggleModal()" title="Sincronizar">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                            </svg>
+                        </button>
                     </header>
 
                     <!-- DASHBOARD -->
@@ -742,6 +769,9 @@
                             <p id="expense-display">R$ 0,00</p>
                         </div>
                     </div>
+
+                    <!-- BOTÃO DE INSTALAÇÃO PWA -->
+                    <button id="install-btn" onclick="installPWA()">📱 INSTALAR NA TELA INICIAL</button>
 
                     <!-- FORMULÁRIO -->
                     <div class="form-container">
@@ -840,6 +870,37 @@
     </div>
 
     <script>
+        // ===== PWA INSTALLATION HANDLER =====
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-btn').classList.add('visible');
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA instalado com sucesso!');
+                        document.getElementById('install-btn').classList.remove('visible');
+                    } else {
+                        console.log('Usuário recusou a instalação');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        }
+
+        window.addEventListener('appinstalled', () => {
+            console.log('BellaZo foi instalado!');
+            document.getElementById('install-btn').classList.remove('visible');
+            deferredPrompt = null;
+        });
+
+        // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
           apiKey: "AIzaSyCTC8A9FYStJBNHh-L4-qM7S7t3qqRBdCU",
           authDomain: "controle-financeiro-19ae8.firebaseapp.com",
@@ -998,254 +1059,146 @@
             const type = typeInput.value;
             categoryInput.innerHTML = '';
             const categories = type === 'expense' ? expenseCategories : incomeCategories;
-            
             categories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = cat;
-                categoryInput.appendChild(opt);
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categoryInput.appendChild(option);
             });
-            updateFormTypeLabel();
             updateFormCategoryLabel();
         }
 
-        function populateCategoryFilter() {
-            const filterCat = document.getElementById('filter-cat');
-            const currentSelection = filterCat.value;
-            filterCat.innerHTML = '<option value="">Categoria</option>';
-            
-            const allCategories = [...new Set([...expenseCategories, ...incomeCategories])];
-            allCategories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = cat;
-                filterCat.appendChild(opt);
-            });
-            filterCat.value = currentSelection;
-        }
-
-        function connectToFirebase() {
-            const key = syncKeyInput.value.trim();
-            if (!key) {
-                syncStatus.textContent = "Digite uma chave válida.";
-                return;
-            }
-            localStorage.setItem('sync_key', key);
-            initializeDatabase(key);
-        }
-
-        function initializeDatabase(key) {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            database = firebase.database();
-            currentRef = database.ref('financas/' + key);
-            syncStatus.textContent = "Conectado com sucesso!";
-            
-            currentRef.on('value', snapshot => {
-                const data = snapshot.val();
-                transactions = [];
-                if (data) {
-                    for (let id in data) {
-                        transactions.push({ id, ...data[id] });
-                    }
-                }
-                populateCategoryFilter();
-                init();
-            });
-        }
-
-        function init() {
-            const filterDescValue = document.getElementById('filter-desc').value.toLowerCase();
-            const filterCatValue = document.getElementById('filter-cat').value;
-            const filterDateValue = document.getElementById('filter-date').value;
-
-            transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-            const filteredTransactions = transactions.filter(t => {
-                const matchesDesc = t.description.toLowerCase().includes(filterDescValue);
-                const matchesCat = !filterCatValue || t.category === filterCatValue;
-                const matchesDate = !filterDateValue || t.date === filterDateValue;
-                return matchesDesc && matchesCat && matchesDate;
-            });
-
-            if (filterCatValue || filterDateValue || filterDescValue) {
-                const totalFiltered = filteredTransactions.reduce((acc, curr) => {
-                    return curr.type === 'income' ? acc + parseFloat(curr.amount) : acc - parseFloat(curr.amount);
-                }, 0);
-                
-                filterTotalDisplay.textContent = `R$ ${Math.abs(totalFiltered).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            } else {
-                filterTotalDisplay.textContent = `R$ 0,00`;
-            }
-
-            renderCards(filteredTransactions);
-            updateDashboard();
-        }
-        // PROCESSA E RENDERIZA OS CARDS REPLICANDO 1000325501.PNG
-        function renderCards(filtered) {
+        function renderTransactions() {
             transactionList.innerHTML = '';
-            
-            if(filtered.length === 0) {
-                transactionList.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-secondary); font-size:15px;">Nenhum lançamento encontrado.</div>`;
-                return;
-            }
+            const filterDesc = document.getElementById('filter-desc').value.toLowerCase();
+            const filterDate = document.getElementById('filter-date').value;
+            const filterCat = document.getElementById('filter-cat').value;
 
-            filtered.forEach(t => {
-                const isIncome = t.type === 'income';
-                
-                // Formata o bloco empilhado de data (Dia e Abreviação do Mês)
-                let dayStr = "00";
-                let monthStr = "---";
-                if (t.date) {
-                    const parts = t.date.split('-');
-                    if (parts.length === 3) {
-                        dayStr = parts[2];
-                        const mIndex = parseInt(parts[1], 10) - 1;
-                        monthStr = monthsShort[mIndex] || "---";
-                    }
-                }
+            let filteredTransactions = transactions.filter(t => {
+                const matchDesc = t.description.toLowerCase().includes(filterDesc);
+                const matchDate = !filterDate || t.date === filterDate;
+                const matchCat = !filterCat || t.category === filterCat;
+                return matchDesc && matchDate && matchCat;
+            });
 
-                // Resgata o ícone e a cor correspondente da categoria
-                const meta = categoryMetadata[t.category] || { icon: "📦", bg: "#C2C2C2" };
-                
-                // Formata o valor numérico
-                const formattedAmount = parseFloat(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-                const displayAmount = `${isIncome ? '' : '-'}${formattedAmount}`;
+            let total = 0;
+            filteredTransactions.forEach(t => {
+                if (t.type === 'income') total += t.amount;
+                else total -= t.amount;
 
-                // Cria o elemento estruturado do card vindo direto da foto
-                const cardDiv = document.createElement('div');
-                cardDiv.className = 't-item-card';
-                // Adiciona o gatilho inteligente de clique em todo o corpo do card
-                cardDiv.setAttribute('onclick', `openCardActions('${t.id}', '${t.description.replace(/'/g, "\\'")}')`);
-                
-                cardDiv.innerHTML = `
-                    <div class="t-card-left">
-                        <div class="t-status-dot ${t.type}"></div>
-                        <div class="t-date-block">
-                            <span class="t-date-day">${dayStr}</span>
-                            <span class="t-date-month">${monthStr}</span>
+                const [year, month, day] = t.date.split('-');
+                const cardHTML = `
+                    <div class="t-item-card" onclick="openCardActions('${t.id}', '${t.description.replace(/'/g, "\\'")}')">
+                        <div class="t-card-left">
+                            <div class="t-status-dot ${t.type}"></div>
+                            <div class="t-date-block">
+                                <div class="t-date-day">${day}</div>
+                                <div class="t-date-month">${monthsShort[parseInt(month) - 1]}</div>
+                            </div>
+                            <div class="t-icon-circle">${categoryMetadata[t.category]?.icon || '📦'}</div>
+                            <div class="t-info-block">
+                                <div class="t-meta-category">${t.category}</div>
+                                <div class="t-main-description">${t.description}</div>
+                            </div>
                         </div>
-                        <div class="t-icon-circle" style="background-color: ${meta.bg};">
-                            ${meta.icon}
+                        <div class="t-card-right ${t.type}">
+                            ${t.type === 'income' ? '+' : '-'} R$ ${t.amount.toFixed(2).replace('.', ',')}
                         </div>
-                        <div class="t-info-block">
-                            <span class="t-meta-category">${t.category}</span>
-                            <span class="t-main-description">${t.description}</span>
-                        </div>
-                    </div>
-                    <div class="t-card-right ${t.type}">
-                        ${displayAmount}
                     </div>
                 `;
-                transactionList.appendChild(cardDiv);
+                transactionList.innerHTML += cardHTML;
             });
+
+            filterTotalDisplay.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
         }
 
-        function updateDashboard() {
-            let income = 0;
-            let expense = 0;
-
+        function calculateBalances() {
+            let balance = 0, income = 0, expense = 0;
             transactions.forEach(t => {
-                if (t.type === 'income') income += parseFloat(t.amount);
-                else expense += parseFloat(t.amount);
+                if (t.type === 'income') {
+                    balance += t.amount;
+                    income += t.amount;
+                } else {
+                    balance -= t.amount;
+                    expense += t.amount;
+                }
             });
-
-            const balance = income - expense;
-
-            balanceDisplay.textContent = `R$ ${balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-            incomeDisplay.textContent = `R$ ${income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-            expenseDisplay.textContent = `R$ ${expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            balanceDisplay.textContent = `R$ ${balance.toFixed(2).replace('.', ',')}`;
+            incomeDisplay.textContent = `R$ ${income.toFixed(2).replace('.', ',')}`;
+            expenseDisplay.textContent = `R$ ${expense.toFixed(2).replace('.', ',')}`;
         }
 
-        form.addEventListener('submit', event => {
-            event.preventDefault();
-            
-            const data = {
+        function addTransaction(e) {
+            e.preventDefault();
+            const transaction = {
+                id: Date.now().toString(),
                 description: descriptionInput.value,
                 date: dateInput.value,
                 amount: parseFloat(amountInput.value),
                 type: typeInput.value,
                 category: categoryInput.value
             };
-
-            if (editingTransactionId) {
-                if (currentRef) {
-                    currentRef.child(editingTransactionId).set(data);
-                } else {
-                    const idx = transactions.findIndex(t => t.id === editingTransactionId);
-                    transactions[idx] = { id: editingTransactionId, ...data };
-                    init();
-                }
-                editingTransactionId = null;
-                btnSubmitForm.textContent = 'ADICIONAR';
-            } else {
-                if (currentRef) {
-                    currentRef.push(data);
-                } else {
-                    transactions.push({ id: Date.now().toString(), ...data });
-                    init();
-                }
-            }
-
+            transactions.push(transaction);
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            calculateBalances();
+            init();
             form.reset();
-            handleTypeChange();
             setDefaultDate();
-        });
-
-        function editTransaction(id) {
-            const t = transactions.find(item => item.id === id);
-            if (!t) return;
-
-            descriptionInput.value = t.description;
-            dateInput.value = t.date || '';
-            amountInput.value = t.amount;
-            typeInput.value = t.type;
             handleTypeChange();
-            categoryInput.value = t.category;
-            
-            updateFormDateLabel(dateInput);
-            updateFormTypeLabel();
-            updateFormCategoryLabel();
-            
-            editingTransactionId = id;
-            btnSubmitForm.textContent = 'SALVAR ALTERAÇÃO';
-            
-            scrollToPageOne();
         }
 
         function deleteTransaction(id) {
-            if (!confirm("Excluir esta transação?")) return;
-            if (currentRef) {
-                currentRef.child(id).remove();
-            } else {
-                transactions = transactions.filter(t => t.id !== id);
-                init();
+            transactions = transactions.filter(t => t.id !== id);
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            calculateBalances();
+            init();
+        }
+
+        function editTransaction(id) {
+            const transaction = transactions.find(t => t.id === id);
+            if (transaction) {
+                descriptionInput.value = transaction.description;
+                dateInput.value = transaction.date;
+                updateFormDateLabel(dateInput);
+                amountInput.value = transaction.amount;
+                typeInput.value = transaction.type;
+                handleTypeChange();
+                categoryInput.value = transaction.category;
+                updateFormCategoryLabel();
+                deleteTransaction(id);
+                scrollToPageOne();
             }
         }
 
         function clearAllHistory() {
-            if (!confirm("AVISO: Isso apagará TODO o seu histórico de transações. Continuar?")) return;
-            if (currentRef) {
-                currentRef.remove();
-            } else {
+            if (confirm('Tem certeza que deseja excluir todo o histórico?')) {
                 transactions = [];
+                localStorage.setItem('transactions', JSON.stringify(transactions));
+                calculateBalances();
                 init();
             }
         }
 
-        handleTypeChange();
-        setDefaultDate();
-        
-        const savedKey = localStorage.getItem('sync_key');
-        if (savedKey) {
-            syncKeyInput.value = savedKey;
-            initializeDatabase(savedKey);
-        } else {
-            syncStatus.textContent = "Modo Local (Sem nuvem conectada).";
-            populateCategoryFilter();
-            init();
+        function init() {
+            renderTransactions();
+            updateFilterCatLabel(document.getElementById('filter-cat'));
         }
+
+        function connectToFirebase() {
+            // Placeholder para sincronização Firebase
+            syncStatus.textContent = 'Conexão não configurada neste momento.';
+        }
+
+        form.addEventListener('submit', addTransaction);
+
+        window.addEventListener('load', () => {
+            const stored = localStorage.getItem('transactions');
+            if (stored) transactions = JSON.parse(stored);
+            calculateBalances();
+            handleTypeChange();
+            setDefaultDate();
+            init();
+        });
     </script>
 </body>
 </html>
