@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Controle Financeiro</title>
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1A3C38">
+    
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    
+    <link class="favicon-png" rel="icon" type="image/png" sizes="192x192" href="1000320254.png">
+    <link class="favicon-png" rel="icon" type="image/png" sizes="512x512" href="1000320254.png">
+    <link class="manifest" href="manifest.json">
+
+    <!-- Importação da Fonte Cabin -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <style>
+        :root {
+            --primary: #1A3C38;       
+            --accent: #1A3C38;        
+            --verde: #00B466;         
+            --income: #209F8B;        
+            --expense: #BA1A1A;       
+            --background: #F4F6F5;    
+            --card-bg: #ffffff;
+            --text-secondary: #757977; 
+            --border-color: #C4C7C5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cabin', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        html, body {
+            overflow: hidden; 
+            background-color: var(--background);
+            color: var(--primary);
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* --- ESTRUTURA DO CARROSSEL LATERAL --- */
+        .app-viewport {
+            width: 100vw;
+            height: 100vh;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .app-viewport::-webkit-scrollbar {
+            display: none;
+        }
+        .app-viewport {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .app-slider {
+            display: flex;
+            width: 200vw;
+            height: 100%;
+        }
+
+        .app-page {
+            width: 100vw;
+            height: 100%;
+            flex: 0 0 100vw;
+            scroll-snap-align: start;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 12px 16px 24px 16px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .page-indicator-bar {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 12px;
+            margin-bottom: 4px;
+        }
+        .indicator-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+        }
+        .indicator-dot.active {
+            background-color: var(--primary);
+            width: 14px;
+            border-radius: 4px;
+        }
+
+        /* --- HEADER OTIMIZADO --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 15px 7px;
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 35px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            white-space:;
+        }
+
+       .sync-icon-btn {
+    background: transparent; 
+    border: none;
+    color: var(--primary); 
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+
+    /* DEFINIÇÕES DE TAMANHO DO ÍCONE: */
+    width: 45px !important;
+    height: 48px;
+    padding: 0;  
+    border-radius: 50%;
+    flex-shrink: 0;
+    transform: translateY(4px);
+}
+
+/* Efeito visual moderno: quando você ou sua esposa tocarem no botão, 
+   ele mostra um círculo cinza bem suave ao fundo */
+.sync-icon-btn:active {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+
+
+        .sync-icon-btn:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+            opacity: 1;
+        }
+
+        /* --- MODAIS COM ESTILO UNIFICADO --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 380px;
+            border-radius: 30px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+            overflow: hidden;
+            animation: modalFadeIn 0.2s cubic-bezier(0, 0, 0.2, 1);
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #E1E3E1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .sync-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sync-container p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .form-group-vertical {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sync-container input {
+            padding: 14px 16px;
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            background-color: transparent;
+            color: var(--primary);
+            width: 100%;
+            outline: none;
+        }
+
+        .sync-container button {
+            padding: 12px;
+            font-size: 0.95rem;
+            border-radius: 30px;
+            width: 100%;
+        }
+
+        .sync-status {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* --- DASHBOARD E CARDS --- */
+        .dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 15px 30px;
+            border-radius: 35px;
+            box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.4), 0px 2px 4px rgba(0, 0, 0, 0.03);
+            text-align: left;
+            border: none; 
+        }
+
+        .card.balance {
+            background: var(--primary);
+            color: #dddddd;
+            box-shadow: 0px 6px 16px rgba(26, 60, 56, 0.4);
+        }
+        
+        .card.balance h3 { color: #A3B8B6; }
+        .card.balance p { color: var(--verde) !important; }
+
+        .card h3 {
+            font-size: 15px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            letter-spacing: 0.6px;
+            font-weight: 700;
+        }
+
+        .card p {
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .card.income p { color: var(--income); }
+        .card.expense p { color: var(--expense); }
+
+        /* --- FORMULÁRIO --- */
+        .form-container {
+            background: var(--card-bg);
+            padding: 18px;
+            border-radius: 30px;
+            box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+            border: 1px solid #E1E3E1;
+        }
+
+        .form-container button {
+            height: 50px;
+        }
+
+        .form-group-full {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .form-group-full input {
+            width: 100%;
+        }
+
+        .form-group-fields {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        @media(min-width: 440px) {
+            .form-group-fields {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .custom-input-wrapper {
+            position: relative;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            box-sizing: border-box;
+            width: 100%;
+            height: 50px;
+        }
+
+        .custom-input-wrapper:focus-within {
+            border-color: var(--accent);
+            border-width: 2px;
+            padding: 13px 15px;
+        }
+
+        .custom-input-wrapper select,
+        .custom-input-wrapper input[type="date"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .custom-input-wrapper .field-label {
+            color: var(--primary);
+            font-size: 18px;
+            user-select: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 12px;
+        }
+
+        .custom-input-wrapper .field-arrow {
+            font-size: 16px;
+            color: var(--text-secondary);
+            user-select: none;
+        }
+
+        input, select, button {
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            background-color: transparent;
+            border-radius: 25px;
+            font-size: 18px;
+            outline: none;
+            color: var(--primary);
+            transition: all 0.2s;
+            height: 50px;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--accent);
+            border-width: 2px;
+            padding: 13px 15px;
+        }
+
+        select option {
+            background-color: #ffffff !important;
+            color: #1A3C38 !important;
+        }
+
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            border-radius: 25px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            opacity: 0.95;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* --- HISTÓRICO DE CARDS MODERNOS (FOTO 1000325501.PNG) --- */
+        .history-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 5px;
+        }
+
+        .history-controls {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 30px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid #E1E3E1;
+        }
+
+        .transactions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        .transactions-header h3 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .filters-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .filters-container input, 
+        .filters-container select, 
+        .filters-container .category-total-badge,
+        .filters-container .date-filter-wrapper {
+            width: 100%;
+            height: 48px;
+            padding: 10px 14px;
+            font-size: 18px;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        .date-filter-wrapper {
+            position: relative;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .date-filter-wrapper:focus-within {
+            border-color: var(--accent);
+            border-width: 2px;
+        }
+
+        .date-filter-wrapper input[type="date"],
+        .date-filter-wrapper select {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .date-filter-wrapper .date-label {
+            color: var(--primary);
+            font-size: 18px;
+            user-select: none;
+        }
+
+        .date-filter-wrapper .date-label.placeholder {
+            color: var(--text-secondary);
+        }
+
+        .date-filter-wrapper .date-arrow {
+            font-size: 16px;
+            color: var(--text-secondary);
+            user-select: none;
+        }
+
+        .category-total-badge {
+            background-color: var(--accent);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 18px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Container da listagem dos itens */
+        .transaction-cards-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 5px;
+        }
+
+        /* O CARD REPLICANDO PERFEITAMENTE A IMAGEM */
+        .t-item-card {
+            background: var(--card-bg);
+            border-radius: 40px; /* Bem oval/pílula como na foto */
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.02);
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .t-item-card:active {
+            transform: scale(0.98);
+            background-color: #F4F6F5;
+        }
+
+        .t-card-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Ponto indicador de status (Verde/Vermelho) */
+        .t-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .t-status-dot.income { background-color: var(--verde); }
+        .t-status-dot.expense { background-color: var(--expense); }
+
+        /* Bloco de Data Empilhado (01 JUN) */
+        .t-date-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            line-height: 1.1;
+            flex-shrink: 0;
+        }
+        .t-date-day {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .t-date-month {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        /* Círculo do Ícone da Categoria */
+.t-icon-circle {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px; /* Aumentei de 20px para 30px */
+    flex-shrink: 0;
+    background-color: transparent !important; /* Força o fundo a ficar invisível */
+}
+
+
+        /* Textos centrais empilhados */
+        .t-info-block {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .t-meta-category {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 1px;
+        }
+        .t-main-description {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Valor à direita */
+        .t-card-right {
+            font-size: 17px;
+            font-weight: 700;
+            margin-left: 10px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .t-card-right.income { color: var(--primary); } /* Mantém elegante conforme imagem */
+        .t-card-right.expense { color: #222222; }
+
+        /* Botões de Ações do Menu de Escolha */
+        .action-menu-btn {
+            padding: 14px;
+            font-size: 1rem;
+            border-radius: 20px;
+            width: 100%;
+            margin-bottom: 8px;
+            color: white;
+            font-weight: 700;
+        }
+        .action-menu-btn.edit { background-color: var(--income); }
+        .action-menu-btn.delete { background-color: var(--expense); }
+        .action-menu-btn.cancel { background-color: var(--text-secondary); margin-bottom: 0; }
+
+        .btn-danger-clear {
+            background: none;
+            border: none;
+            color: var(--expense);
+            width: auto;
+            height: auto;
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-radius: 8px;
+            letter-spacing: 0.3px;
+        }
+        .btn-danger-clear:hover { background-color: rgba(186, 26, 26, 0.05); }
+    </style>
+</head>
+<body>
+
+    <!-- MODAL DE SINCRONIZAÇÃO -->
+    <div class="modal-overlay" id="sync-modal" onclick="closeModal(event)">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Sincronização & Nuvem</h2>
+            </div>
+            <div class="modal-body">
+                <div class="sync-container">
+                    <p>Insira uma chave compartilhada para sincronizar suas finanças em tempo real com outros dispositivos.</p>
+                    <div class="form-group-vertical">
+                        <input type="text" id="sync-key" placeholder="Digite sua chave">
+                        <button type="button" class="btn-accent" id="btn-connect" onclick="connectToFirebase()">SINCRONIZAR</button>
+                    </div>
+                    <div class="sync-status" id="sync-status">Verificando configuração do servidor...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REVOLUCIONÁRIO: MODAL SHEET DE AÇÕES DO CARD CLICADO -->
+    <div class="modal-overlay" id="action-modal" onclick="closeActionModal(event)">
+        <div class="modal-card" style="position: absolute; bottom: 16px; width: calc(100% - 32px);">
+            <div class="modal-header" style="padding: 15px;">
+                <h2 id="action-title" style="font-size: 1.1rem;">O que deseja fazer?</h2>
+            </div>
+            <div class="modal-body" style="padding: 16px;">
+                <button type="button" class="action-menu-btn edit" onclick="triggerCardEdit()">EDITAR LANÇAMENTO</button>
+                <button type="button" class="action-menu-btn delete" onclick="triggerCardDelete()">EXCLUIR LANÇAMENTO</button>
+                <button type="button" class="action-menu-btn cancel" onclick="toggleActionModal()">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEWPORT DO CARROSSEL -->
+    <div class="app-viewport" id="app-viewport">
+        <div class="app-slider">
+            
+            <!-- PÁGINA 1: DASHBOARD E CADASTRO -->
+            <div class="app-page">
+                <div class="container">
+                    <header>
+                        <h1>Controle Financeiro</h1>                        
+    <button class="sync-icon-btn" id="menu-toggle-btn" onclick="toggleModal()" title="Sincronizar">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+    </svg>
+</button>
+
+</button>
+
+                    </header>
+
+                    <!-- DASHBOARD -->
+                    <div class="dashboard">
+                        <div class="card balance">
+                            <h3>Saldo</h3>
+                            <p id="balance-display">R$ 0,00</p>
+                        </div>
+                        <div class="card income">
+                            <h3>Receitas</h3>
+                            <p id="income-display">R$ 0,00</p>
+                        </div>
+                        <div class="card expense">
+                            <h3>Despesas</h3>
+                            <p id="expense-display">R$ 0,00</p>
+                        </div>
+                    </div>
+
+                    <!-- FORMULÁRIO -->
+                    <div class="form-container">
+                        <form id="transaction-form">
+                            <div class="form-group-full">
+                                <input type="text" id="description" placeholder="Descrição" required>
+                            </div>
+                            <div class="form-group-fields">
+                                <div class="field-wrapper">
+                                    <div class="custom-input-wrapper">
+                                        <span id="form-date-label" class="field-label">Data</span>
+                                        <span class="field-arrow">▼</span>
+                                        <input type="date" id="date" required onchange="updateFormDateLabel(this)">
+                                    </div>
+                                </div>
+
+                                <input type="number" id="amount" placeholder="Valor (R$)" step="0.01" required>
+
+                                <div class="field-wrapper">
+                                    <div class="custom-input-wrapper">
+                                        <span id="form-type-label" class="field-label">Despesa</span>
+                                        <span class="field-arrow">▼</span>
+                                        <select id="type" onchange="handleTypeChange()">
+                                            <option value="expense" selected>Despesa</option>
+                                            <option value="income">Receita</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="field-wrapper">
+                                    <div class="custom-input-wrapper">
+                                        <span id="form-category-label" class="field-label">Categoria</span>
+                                        <span class="field-arrow">▼</span>
+                                        <select id="category" required onchange="updateFormCategoryLabel(this)"></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" id="btn-submit-form">ADICIONAR</button>
+                        </form>
+                    </div>
+
+                    <div class="page-indicator-bar">
+                        <div class="indicator-dot active"></div>
+                        <div class="indicator-dot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PÁGINA 2: HISTÓRICO DE TRANSAÇÕES MODERNIZADO -->
+            <div class="app-page">
+                <div class="container history-wrapper">
+                    
+                    <!-- Bloco de Controles superiores -->
+                    <div class="history-controls">
+                        <div class="transactions-header">
+                            <h3>Histórico</h3>
+                            <button type="button" class="btn-danger-clear" onclick="clearAllHistory()">EXCLUIR HISTÓRICO</button>
+                        </div>
+
+                        <div class="filters-container">
+                            <input type="text" id="filter-desc" placeholder="Pesquisar" oninput="init()">
+                            
+                            <div class="date-filter-wrapper">
+                                <span id="filter-date-label" class="date-label placeholder">Data</span>
+                                <span class="date-arrow">▼</span>
+                                <input type="date" id="filter-date" onchange="updateFilterDateLabel(this)">
+                            </div>
+                            
+                            <div class="date-filter-wrapper">
+                                <span id="filter-cat-label" class="date-label placeholder">Categoria</span>
+                                <span class="date-arrow">▼</span>
+                                <select id="filter-cat" onchange="updateFilterCatLabel(this)">
+                                    <option value="">Categoria</option>
+                                </select>
+                            </div>
+
+                            <select id="filter-type" style="display: none;">
+                                <option value="" selected>Todos</option>
+                            </select>
+
+                            <div id="filter-total-display" class="category-total-badge">R$ 0,00</div>
+                        </div>
+                    </div>
+
+                    <!-- NOVO CONTAINER DA LISTAGEM DE CARDS -->
+                    <div id="transaction-list" class="transaction-cards-list"></div>
+
+                    <div class="page-indicator-bar">
+                        <div class="indicator-dot"></div>
+                        <div class="indicator-dot active"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+          apiKey: "AIzaSyCTC8A9FYStJBNHh-L4-qM7S7t3qqRBdCU",
+          authDomain: "controle-financeiro-19ae8.firebaseapp.com",
+          databaseURL: "https://controle-financeiro-19ae8-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "controle-financeiro-19ae8",
+          storageBucket: "controle-financeiro-19ae8.firebasestorage.app",
+          messagingSenderId: "765505633367",
+          appId: "1:765505633367:web:749155f0c9c5fcb5aeb712",
+          measurementId: "G-3VHZQCHGBJ"
+        };
+
+        const expenseCategories = ["Casa", "Saúde", "Carro", "Meninas", "Alimentação", "Mercado", "Manutenção", "Lazer", "Viagem", "Conforto", "JW", "Estética", "Outros"];
+        const incomeCategories = ["Pagamento", "Camila", "VA"];
+
+        // Mapeamento visual para simular perfeitamente a imagem 1000325501.png
+        const categoryMetadata = {
+            "Alimentação": { icon: "🍲", bg: "#E6A185" }, // Tom terracota da foto
+            "Carro": { icon: "🚘", bg: "#E6C143" },       // Amarelo combustível da foto
+            "Casa": { icon: "🏠", bg: "#8FB7CC" },        // Azul claro da foto
+            "Saúde": { icon: "🫀", bg: "#E69595" },
+            "Meninas": { icon: "🐕", bg: "#333333" },
+            "Mercado": { icon: "🛒", bg: "#86C29F" },
+            "Manutenção": { icon: "🔧", bg: "#111111" },
+            "Lazer": { icon: "🍿", bg: "#A284D6" },
+            "Viagem": { icon: "✈️", bg: "#7CB3C6" },
+            "Conforto": { icon: "🛋️", bg: "#85C2C2" },
+            "JW": { icon: "💼", bg: "#6E9393" },
+            "Estética": { icon: "💇🏽", bg: "#E897B9" },
+            "Pagamento": { icon: "💰", bg: "#70B870" },
+            "Camila": { icon: "❤️", bg: "#E07070" },
+            "VA": { icon: "🍔", bg: "#E09C5A" },
+            "Outros": { icon: "📦", bg: "#C2C2C2" }
+        };
+
+        const monthsShort = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+        const form = document.getElementById('transaction-form');
+        const btnSubmitForm = document.getElementById('btn-submit-form');
+        const descriptionInput = document.getElementById('description');
+        const dateInput = document.getElementById('date');
+        const amountInput = document.getElementById('amount');
+        const typeInput = document.getElementById('type');
+        const categoryInput = document.getElementById('category');
+        const transactionList = document.getElementById('transaction-list');
+        const balanceDisplay = document.getElementById('balance-display');
+        const incomeDisplay = document.getElementById('income-display');
+        const expenseDisplay = document.getElementById('expense-display');
+        const syncKeyInput = document.getElementById('sync-key');
+        const syncStatus = document.getElementById('sync-status');
+        const modal = document.getElementById('sync-modal');
+        const actionModal = document.getElementById('action-modal');
+        const actionTitle = document.getElementById('action-title');
+        const filterTotalDisplay = document.getElementById('filter-total-display');
+
+        let transactions = [];
+        let database = null;
+        let currentRef = null;
+        let editingTransactionId = null;
+        let activeCardId = null; // Guarda o id do card ativo selecionado
+
+        function scrollToPageOne() {
+            document.getElementById('app-viewport').scrollTo({ left: 0, behavior: 'smooth' });
+        }
+
+        function updateFormDateLabel(input) {
+            const label = document.getElementById('form-date-label');
+            if (input.value) {
+                const parts = input.value.split('-');
+                label.textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            } else {
+                label.textContent = 'Data';
+            }
+        }
+
+        function updateFormTypeLabel() {
+            const label = document.getElementById('form-type-label');
+            label.textContent = typeInput.options[typeInput.selectedIndex]?.text || 'Despesa';
+        }
+
+        function updateFormCategoryLabel() {
+            const label = document.getElementById('form-category-label');
+            label.textContent = categoryInput.options[categoryInput.selectedIndex]?.text || 'Categoria';
+        }
+
+        function setDefaultDate() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+            updateFormDateLabel(dateInput);
+        }
+
+        function updateFilterDateLabel(input) {
+            const label = document.getElementById('filter-date-label');
+            if (input.value) {
+                const parts = input.value.split('-');
+                label.textContent = `${parts[2]}/${parts[1]}`;
+                label.classList.remove('placeholder');
+            } else {
+                label.textContent = 'Data';
+                label.classList.add('placeholder');
+            }
+            init();
+        }
+
+        function updateFilterCatLabel(select) {
+            const label = document.getElementById('filter-cat-label');
+            label.textContent = select.options[select.selectedIndex]?.text || 'Categoria';
+            if (select.value) {
+                label.classList.remove('placeholder');
+            } else {
+                label.classList.add('placeholder');
+            }
+            init();
+        }
+
+        function toggleModal() {
+            modal.classList.toggle('active');
+        }
+
+        function closeModal(event) {
+            if (event.target === modal) {
+                toggleModal();
+            }
+        }
+
+        // Controle do novo Menu de Ações
+        function toggleActionModal() {
+            actionModal.classList.toggle('active');
+        }
+
+        function closeActionModal(event) {
+            if (event.target === actionModal) {
+                toggleActionModal();
+            }
+        }
+
+        function openCardActions(id, description) {
+            activeCardId = id;
+            actionTitle.textContent = `Lançamento: "${description}"`;
+            toggleActionModal();
+        }
+
+        function triggerCardEdit() {
+            toggleActionModal();
+            if (activeCardId) editTransaction(activeCardId);
+        }
+
+        function triggerCardDelete() {
+            toggleActionModal();
+            if (activeCardId) deleteTransaction(activeCardId);
+        }
+
+        function handleTypeChange() {
+            const type = typeInput.value;
+            categoryInput.innerHTML = '';
+            const categories = type === 'expense' ? expenseCategories : incomeCategories;
+            
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                categoryInput.appendChild(opt);
+            });
+            updateFormTypeLabel();
+            updateFormCategoryLabel();
+        }
+
+        function populateCategoryFilter() {
+            const filterCat = document.getElementById('filter-cat');
+            const currentSelection = filterCat.value;
+            filterCat.innerHTML = '<option value="">Categoria</option>';
+            
+            const allCategories = [...new Set([...expenseCategories, ...incomeCategories])];
+            allCategories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                filterCat.appendChild(opt);
+            });
+            filterCat.value = currentSelection;
+        }
+
+        function connectToFirebase() {
+            const key = syncKeyInput.value.trim();
+            if (!key) {
+                syncStatus.textContent = "Digite uma chave válida.";
+                return;
+            }
+            localStorage.setItem('sync_key', key);
+            initializeDatabase(key);
+        }
+
+        function initializeDatabase(key) {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            database = firebase.database();
+            currentRef = database.ref('financas/' + key);
+            syncStatus.textContent = "Conectado com sucesso!";
+            
+            currentRef.on('value', snapshot => {
+                const data = snapshot.val();
+                transactions = [];
+                if (data) {
+                    for (let id in data) {
+                        transactions.push({ id, ...data[id] });
+                    }
+                }
+                populateCategoryFilter();
+                init();
+            });
+        }
+
+        function init() {
+            const filterDescValue = document.getElementById('filter-desc').value.toLowerCase();
+            const filterCatValue = document.getElementById('filter-cat').value;
+            const filterDateValue = document.getElementById('filter-date').value;
+
+            transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+            const filteredTransactions = transactions.filter(t => {
+                const matchesDesc = t.description.toLowerCase().includes(filterDescValue);
+                const matchesCat = !filterCatValue || t.category === filterCatValue;
+                const matchesDate = !filterDateValue || t.date === filterDateValue;
+                return matchesDesc && matchesCat && matchesDate;
+            });
+
+            if (filterCatValue || filterDateValue || filterDescValue) {
+                const totalFiltered = filteredTransactions.reduce((acc, curr) => {
+                    return curr.type === 'income' ? acc + parseFloat(curr.amount) : acc - parseFloat(curr.amount);
+                }, 0);
+                
+                filterTotalDisplay.textContent = `R$ ${Math.abs(totalFiltered).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            } else {
+                filterTotalDisplay.textContent = `R$ 0,00`;
+            }
+
+            renderCards(filteredTransactions);
+            updateDashboard();
+        }
+        // PROCESSA E RENDERIZA OS CARDS REPLICANDO 1000325501.PNG
+        function renderCards(filtered) {
+            transactionList.innerHTML = '';
+            
+            if(filtered.length === 0) {
+                transactionList.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-secondary); font-size:15px;">Nenhum lançamento encontrado.</div>`;
+                return;
+            }
+
+            filtered.forEach(t => {
+                const isIncome = t.type === 'income';
+                
+                // Formata o bloco empilhado de data (Dia e Abreviação do Mês)
+                let dayStr = "00";
+                let monthStr = "---";
+                if (t.date) {
+                    const parts = t.date.split('-');
+                    if (parts.length === 3) {
+                        dayStr = parts[2];
+                        const mIndex = parseInt(parts[1], 10) - 1;
+                        monthStr = monthsShort[mIndex] || "---";
+                    }
+                }
+
+                // Resgata o ícone e a cor correspondente da categoria
+                const meta = categoryMetadata[t.category] || { icon: "📦", bg: "#C2C2C2" };
+                
+                // Formata o valor numérico
+                const formattedAmount = parseFloat(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                const displayAmount = `${isIncome ? '' : '-'}${formattedAmount}`;
+
+                // Cria o elemento estruturado do card vindo direto da foto
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 't-item-card';
+                // Adiciona o gatilho inteligente de clique em todo o corpo do card
+                cardDiv.setAttribute('onclick', `openCardActions('${t.id}', '${t.description.replace(/'/g, "\\'")}')`);
+                
+                cardDiv.innerHTML = `
+                    <div class="t-card-left">
+                        <div class="t-status-dot ${t.type}"></div>
+                        <div class="t-date-block">
+                            <span class="t-date-day">${dayStr}</span>
+                            <span class="t-date-month">${monthStr}</span>
+                        </div>
+                        <div class="t-icon-circle" style="background-color: ${meta.bg};">
+                            ${meta.icon}
+                        </div>
+                        <div class="t-info-block">
+                            <span class="t-meta-category">${t.category}</span>
+                            <span class="t-main-description">${t.description}</span>
+                        </div>
+                    </div>
+                    <div class="t-card-right ${t.type}">
+                        ${displayAmount}
+                    </div>
+                `;
+                transactionList.appendChild(cardDiv);
+            });
+        }
+
+        function updateDashboard() {
+            let income = 0;
+            let expense = 0;
+
+            transactions.forEach(t => {
+                if (t.type === 'income') income += parseFloat(t.amount);
+                else expense += parseFloat(t.amount);
+            });
+
+            const balance = income - expense;
+
+            balanceDisplay.textContent = `R$ ${balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            incomeDisplay.textContent = `R$ ${income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            expenseDisplay.textContent = `R$ ${expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+        }
+
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            
+            const data = {
+                description: descriptionInput.value,
+                date: dateInput.value,
+                amount: parseFloat(amountInput.value),
+                type: typeInput.value,
+                category: categoryInput.value
+            };
+
+            if (editingTransactionId) {
+                if (currentRef) {
+                    currentRef.child(editingTransactionId).set(data);
+                } else {
+                    const idx = transactions.findIndex(t => t.id === editingTransactionId);
+                    transactions[idx] = { id: editingTransactionId, ...data };
+                    init();
+                }
+                editingTransactionId = null;
+                btnSubmitForm.textContent = 'ADICIONAR';
+            } else {
+                if (currentRef) {
+                    currentRef.push(data);
+                } else {
+                    transactions.push({ id: Date.now().toString(), ...data });
+                    init();
+                }
+            }
+
+            form.reset();
+            handleTypeChange();
+            setDefaultDate();
+        });
+
+        function editTransaction(id) {
+            const t = transactions.find(item => item.id === id);
+            if (!t) return;
+
+            descriptionInput.value = t.description;
+            dateInput.value = t.date || '';
+            amountInput.value = t.amount;
+            typeInput.value = t.type;
+            handleTypeChange();
+            categoryInput.value = t.category;
+            
+            updateFormDateLabel(dateInput);
+            updateFormTypeLabel();
+            updateFormCategoryLabel();
+            
+            editingTransactionId = id;
+            btnSubmitForm.textContent = 'SALVAR ALTERAÇÃO';
+            
+            scrollToPageOne();
+        }
+
+        function deleteTransaction(id) {
+            if (!confirm("Excluir esta transação?")) return;
+            if (currentRef) {
+                currentRef.child(id).remove();
+            } else {
+                transactions = transactions.filter(t => t.id !== id);
+                init();
+            }
+        }
+
+        function clearAllHistory() {
+            if (!confirm("AVISO: Isso apagará TODO o seu histórico de transações. Continuar?")) return;
+            if (currentRef) {
+                currentRef.remove();
+            } else {
+                transactions = [];
+                init();
+            }
+        }
+
+        handleTypeChange();
+        setDefaultDate();
+        
+        const savedKey = localStorage.getItem('sync_key');
+        if (savedKey) {
+            syncKeyInput.value = savedKey;
+            initializeDatabase(savedKey);
+        } else {
+            syncStatus.textContent = "Modo Local (Sem nuvem conectada).";
+            populateCategoryFilter();
+            init();
+        }
+    </script>
+</body>
+</html>
