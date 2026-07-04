@@ -14,9 +14,11 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Cache aberto');
-        return cache.addAll(urlsToCache);
+        return cache.addAll(urlsToCache).catch(err => {
+          console.log('Alguns arquivos não puderam ser cacheados:', err);
+        });
       })
-      .catch(err => console.log('Erro ao cachear:', err))
+      .catch(err => console.log('Erro ao abrir cache:', err))
   );
   self.skipWaiting();
 });
@@ -46,23 +48,39 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Para requisições do Firebase, usar network-first
+  if (event.request.url.includes('firebasedatabase') || event.request.url.includes('googleapis')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (!response || response.status !== 200) {
+            return response;
+          }
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Para outros recursos, usar cache-first
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Se encontrou no cache, retorna
         if (response) {
           return response;
         }
 
-        // Tenta buscar da rede
         return fetch(event.request)
           .then(response => {
-            // Verifica se é uma resposta válida
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
 
-            // Clona a resposta para cachear
             const responseToCache = response.clone();
             caches.open(CACHE_NAME)
               .then(cache => {
@@ -71,15 +89,12 @@ self.addEventListener('fetch', event => {
 
             return response;
           })
-          .catch(() => {
-            // Se falhar, retorna a página offline se existir
-            return caches.match('/index.html');
-          });
+          .catch(() => caches.match('/index.html'));
       })
   );
 });
 
-// Sincronização em background quando voltar online
+// Sincronização em background
 self.addEventListener('sync', event => {
   if (event.tag === 'sync-transactions') {
     event.waitUntil(syncTransactions());
@@ -88,9 +103,7 @@ self.addEventListener('sync', event => {
 
 async function syncTransactions() {
   try {
-    console.log('Sincronizando transações...');
-    // Aqui você pode adicionar lógica para sincronizar dados com Firebase
-    // quando o dispositivo voltar a ter conexão
+    console.log('Sincronizando transações em background...');
   } catch (error) {
     console.log('Erro na sincronização:', error);
   }

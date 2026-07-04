@@ -258,6 +258,14 @@
             text-align: center;
         }
 
+        .sync-status.success {
+            color: var(--verde);
+        }
+
+        .sync-status.error {
+            color: var(--expense);
+        }
+
         /* --- DASHBOARD E CARDS --- */
         .dashboard {
             display: flex;
@@ -870,6 +878,19 @@
     </div>
 
     <script>
+        // ===== REGISTRAR SERVICE WORKER =====
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado com sucesso:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Erro ao registrar Service Worker:', error);
+                    });
+            });
+        }
+
         // ===== PWA INSTALLATION HANDLER =====
         let deferredPrompt;
 
@@ -959,8 +980,175 @@
         let database = null;
         let currentRef = null;
         let editingTransactionId = null;
-        let activeCardId = null; // Guarda o id do card ativo selecionado
+        let activeCardId = null;
+        let isOnline = navigator.onLine;
 
+        // Monitorar conexão
+        window.addEventListener('online', () => {
+            isOnline = true;
+            console.log('Conexão restaurada');
+            syncStatus.textContent = 'Online - Sincronizando...';
+            syncStatus.classList.remove('error');
+            syncStatus.classList.add('success');
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            console.log('Conexão perdida');
+            syncStatus.textContent = 'Offline - Dados salvos localmente';
+            syncStatus.classList.remove('success');
+            syncStatus.classList.add('error');
+        });
+
+        // ===== FUNÇÕES DE SINCRONIZAÇÃO =====
+        function connectToFirebase() {
+            const syncKey = syncKeyInput.value.trim();
+            
+            if (!syncKey) {
+                syncStatus.textContent = '❌ Digite uma chave válida';
+                syncStatus.classList.add('error');
+                syncStatus.classList.remove('success');
+                return;
+            }
+
+            try {
+                // Inicializa Firebase
+                firebase.initializeApp(firebaseConfig);
+                database = firebase.database();
+                
+                // Define a referência com base na chave fornecida
+                currentRef = database.ref('users/' + syncKey + '/transactions');
+                
+                syncStatus.textContent = '⏳ Conectando...';
+                syncStatus.classList.remove('error', 'success');
+
+                // Testa conexão
+                currentRef.limitToLast(1).once('value', (snapshot) => {
+                    syncStatus.textContent = '✅ Sincronização ativa!';
+                    syncStatus.classList.add('success');
+                    syncStatus.classList.remove('error');
+                    
+                    console.log('Conexão estabelecida com a chave:', syncKey);
+                    localStorage.setItem('syncKey', syncKey);
+                    
+                    // Carrega dados do Firebase
+                    loadTransactionsFromFirebase();
+                    
+                    // Configura listener em tempo real
+                    setupRealtimeListener();
+                    
+                    // Fecha o modal após 2 segundos
+                    setTimeout(() => {
+                        closeModal();
+                    }, 2000);
+                    
+                }, (error) => {
+                    syncStatus.textContent = '❌ Erro: ' + error.message;
+                    syncStatus.classList.add('error');
+                    syncStatus.classList.remove('success');
+                    console.error('Erro de conexão:', error);
+                });
+
+            } catch (error) {
+                syncStatus.textContent = '❌ Erro ao conectar: ' + error.message;
+                syncStatus.classList.add('error');
+                syncStatus.classList.remove('success');
+                console.error('Erro:', error);
+            }
+        }
+
+        function loadTransactionsFromFirebase() {
+            if (!currentRef) return;
+            
+            currentRef.once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    transactions = Object.values(data);
+                    localStorage.setItem('transactions', JSON.stringify(transactions));
+                    init();
+                    updateDashboard();
+                    console.log('Transações carregadas do Firebase:', transactions.length);
+                }
+            });
+        }
+
+        function setupRealtimeListener() {
+            if (!currentRef) return;
+            
+            currentRef.on('child_added', (snapshot) => {
+                const newTransaction = snapshot.val();
+                if (!transactions.find(t => t.id === newTransaction.id)) {
+                    transactions.push(newTransaction);
+                    localStorage.setItem('transactions', JSON.stringify(transactions));
+                    init();
+                    updateDashboard();
+                    console.log('Nova transação sincronizada:', newTransaction);
+                }
+            });
+
+            currentRef.on('child_removed', (snapshot) => {
+                const removedId = snapshot.val().id;
+                transactions = transactions.filter(t => t.id !== removedId);
+                localStorage.setItem('transactions', JSON.stringify(transactions));
+                init();
+                updateDashboard();
+                console.log('Transação removida sincronizada:', removedId);
+            });
+        }
+
+        function saveTransactionToFirebase(transaction) {
+            if (!currentRef || !isOnline) {
+                console.log('Firebase não disponível ou offline. Dado será sincronizado quando conectado.');
+                return;
+            }
+
+            const transactionId = transaction.id || Date.now().toString();
+            transaction.id = transactionId;
+            
+            currentRef.child(transactionId).set(transaction)
+                .then(() => {
+                    console.log('Transação salva no Firebase:', transactionId);
+                })
+                .catch((error) => {
+                    console.error('Erro ao salvar no Firebase:', error);
+                });
+        }
+
+        function deleteTransactionFromFirebase(transactionId) {
+            if (!currentRef || !isOnline) {
+                console.log('Firebase não disponível ou offline.');
+                return;
+            }
+
+            currentRef.child(transactionId).remove()
+                .then(() => {
+                    console.log('Transação deletada do Firebase:', transactionId);
+                })
+                .catch((error) => {
+                    console.error('Erro ao deletar do Firebase:', error);
+                });
+        }
+
+        // ===== MODAIS =====
+        function toggleModal() {
+            modal.classList.toggle('active');
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== modal) return;
+            modal.classList.remove('active');
+        }
+
+        function toggleActionModal() {
+            actionModal.classList.toggle('active');
+        }
+
+        function closeActionModal(event) {
+            if (event && event.target !== actionModal) return;
+            actionModal.classList.remove('active');
+        }
+
+        // ===== FUNÇÕES AUXILIARES =====
         function scrollToPageOne() {
             document.getElementById('app-viewport').scrollTo({ left: 0, behavior: 'smooth' });
         }
@@ -1009,56 +1197,21 @@
 
         function updateFilterCatLabel(select) {
             const label = document.getElementById('filter-cat-label');
-            label.textContent = select.options[select.selectedIndex]?.text || 'Categoria';
             if (select.value) {
+                label.textContent = select.value;
                 label.classList.remove('placeholder');
             } else {
+                label.textContent = 'Categoria';
                 label.classList.add('placeholder');
             }
             init();
         }
 
-        function toggleModal() {
-            modal.classList.toggle('active');
-        }
-
-        function closeModal(event) {
-            if (event.target === modal) {
-                toggleModal();
-            }
-        }
-
-        // Controle do novo Menu de Ações
-        function toggleActionModal() {
-            actionModal.classList.toggle('active');
-        }
-
-        function closeActionModal(event) {
-            if (event.target === actionModal) {
-                toggleActionModal();
-            }
-        }
-
-        function openCardActions(id, description) {
-            activeCardId = id;
-            actionTitle.textContent = `Lançamento: "${description}"`;
-            toggleActionModal();
-        }
-
-        function triggerCardEdit() {
-            toggleActionModal();
-            if (activeCardId) editTransaction(activeCardId);
-        }
-
-        function triggerCardDelete() {
-            toggleActionModal();
-            if (activeCardId) deleteTransaction(activeCardId);
-        }
-
         function handleTypeChange() {
-            const type = typeInput.value;
+            updateFormTypeLabel();
+            const newType = typeInput.value;
             categoryInput.innerHTML = '';
-            const categories = type === 'expense' ? expenseCategories : incomeCategories;
+            const categories = newType === 'income' ? incomeCategories : expenseCategories;
             categories.forEach(cat => {
                 const option = document.createElement('option');
                 option.value = cat;
@@ -1068,137 +1221,183 @@
             updateFormCategoryLabel();
         }
 
-        function renderTransactions() {
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value);
+        }
+
+        function updateDashboard() {
+            let totalIncome = 0, totalExpense = 0;
+            transactions.forEach(t => {
+                const amount = parseFloat(t.amount) || 0;
+                if (t.type === 'income') {
+                    totalIncome += amount;
+                } else {
+                    totalExpense += amount;
+                }
+            });
+            const balance = totalIncome - totalExpense;
+            balanceDisplay.textContent = formatCurrency(balance);
+            incomeDisplay.textContent = formatCurrency(totalIncome);
+            expenseDisplay.textContent = formatCurrency(totalExpense);
+        }
+
+        function renderTransactions(transactionsToRender) {
             transactionList.innerHTML = '';
+            transactionsToRender.forEach(t => {
+                const date = new Date(t.date);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = monthsShort[date.getMonth()];
+                const metadata = categoryMetadata[t.category] || { icon: '📦', bg: '#C2C2C2' };
+                const amountText = formatCurrency(t.amount);
+                
+                const card = document.createElement('div');
+                card.className = 't-item-card';
+                card.onclick = () => {
+                    activeCardId = t.id;
+                    toggleActionModal();
+                };
+                card.innerHTML = `
+                    <div class="t-card-left">
+                        <div class="t-status-dot ${t.type}"></div>
+                        <div class="t-date-block">
+                            <div class="t-date-day">${day}</div>
+                            <div class="t-date-month">${month}</div>
+                        </div>
+                        <div class="t-icon-circle">${metadata.icon}</div>
+                        <div class="t-info-block">
+                            <div class="t-meta-category">${t.category}</div>
+                            <div class="t-main-description">${t.description}</div>
+                        </div>
+                    </div>
+                    <div class="t-card-right ${t.type}">${amountText}</div>
+                `;
+                transactionList.appendChild(card);
+            });
+        }
+
+        function init() {
             const filterDesc = document.getElementById('filter-desc').value.toLowerCase();
             const filterDate = document.getElementById('filter-date').value;
             const filterCat = document.getElementById('filter-cat').value;
-
-            let filteredTransactions = transactions.filter(t => {
+            
+            let filtered = transactions.filter(t => {
                 const matchDesc = t.description.toLowerCase().includes(filterDesc);
-                const matchDate = !filterDate || t.date === filterDate;
+                const matchDate = !filterDate || t.date.startsWith(filterDate);
                 const matchCat = !filterCat || t.category === filterCat;
                 return matchDesc && matchDate && matchCat;
             });
-
-            let total = 0;
-            filteredTransactions.forEach(t => {
-                if (t.type === 'income') total += t.amount;
-                else total -= t.amount;
-
-                const [year, month, day] = t.date.split('-');
-                const cardHTML = `
-                    <div class="t-item-card" onclick="openCardActions('${t.id}', '${t.description.replace(/'/g, "\\'")}')">
-                        <div class="t-card-left">
-                            <div class="t-status-dot ${t.type}"></div>
-                            <div class="t-date-block">
-                                <div class="t-date-day">${day}</div>
-                                <div class="t-date-month">${monthsShort[parseInt(month) - 1]}</div>
-                            </div>
-                            <div class="t-icon-circle">${categoryMetadata[t.category]?.icon || '📦'}</div>
-                            <div class="t-info-block">
-                                <div class="t-meta-category">${t.category}</div>
-                                <div class="t-main-description">${t.description}</div>
-                            </div>
-                        </div>
-                        <div class="t-card-right ${t.type}">
-                            ${t.type === 'income' ? '+' : '-'} R$ ${t.amount.toFixed(2).replace('.', ',')}
-                        </div>
-                    </div>
-                `;
-                transactionList.innerHTML += cardHTML;
-            });
-
-            filterTotalDisplay.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
-        }
-
-        function calculateBalances() {
-            let balance = 0, income = 0, expense = 0;
-            transactions.forEach(t => {
-                if (t.type === 'income') {
-                    balance += t.amount;
-                    income += t.amount;
-                } else {
-                    balance -= t.amount;
-                    expense += t.amount;
-                }
-            });
-            balanceDisplay.textContent = `R$ ${balance.toFixed(2).replace('.', ',')}`;
-            incomeDisplay.textContent = `R$ ${income.toFixed(2).replace('.', ',')}`;
-            expenseDisplay.textContent = `R$ ${expense.toFixed(2).replace('.', ',')}`;
-        }
-
-        function addTransaction(e) {
-            e.preventDefault();
-            const transaction = {
-                id: Date.now().toString(),
-                description: descriptionInput.value,
-                date: dateInput.value,
-                amount: parseFloat(amountInput.value),
-                type: typeInput.value,
-                category: categoryInput.value
-            };
-            transactions.push(transaction);
-            localStorage.setItem('transactions', JSON.stringify(transactions));
-            calculateBalances();
-            init();
-            form.reset();
-            setDefaultDate();
-            handleTypeChange();
-        }
-
-        function deleteTransaction(id) {
-            transactions = transactions.filter(t => t.id !== id);
-            localStorage.setItem('transactions', JSON.stringify(transactions));
-            calculateBalances();
-            init();
-        }
-
-        function editTransaction(id) {
-            const transaction = transactions.find(t => t.id === id);
-            if (transaction) {
-                descriptionInput.value = transaction.description;
-                dateInput.value = transaction.date;
-                updateFormDateLabel(dateInput);
-                amountInput.value = transaction.amount;
-                typeInput.value = transaction.type;
-                handleTypeChange();
-                categoryInput.value = transaction.category;
-                updateFormCategoryLabel();
-                deleteTransaction(id);
-                scrollToPageOne();
-            }
+            
+            const total = filtered.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+            filterTotalDisplay.textContent = formatCurrency(total);
+            renderTransactions(filtered);
         }
 
         function clearAllHistory() {
             if (confirm('Tem certeza que deseja excluir todo o histórico?')) {
                 transactions = [];
-                localStorage.setItem('transactions', JSON.stringify(transactions));
-                calculateBalances();
+                localStorage.removeItem('transactions');
+                if (currentRef) {
+                    currentRef.remove();
+                }
                 init();
+                updateDashboard();
+                console.log('Histórico limpo');
             }
         }
 
-        function init() {
-            renderTransactions();
-            updateFilterCatLabel(document.getElementById('filter-cat'));
+        function triggerCardEdit() {
+            if (!activeCardId) return;
+            const transaction = transactions.find(t => t.id === activeCardId);
+            if (transaction) {
+                descriptionInput.value = transaction.description;
+                dateInput.value = transaction.date;
+                amountInput.value = transaction.amount;
+                typeInput.value = transaction.type;
+                handleTypeChange();
+                categoryInput.value = transaction.category;
+                updateFormDateLabel(dateInput);
+                updateFormTypeLabel();
+                updateFormCategoryLabel();
+                editingTransactionId = activeCardId;
+                toggleActionModal();
+                scrollToPageOne();
+            }
         }
 
-        function connectToFirebase() {
-            // Placeholder para sincronização Firebase
-            syncStatus.textContent = 'Conexão não configurada neste momento.';
+        function triggerCardDelete() {
+            if (!activeCardId) return;
+            if (confirm('Tem certeza que deseja excluir este lançamento?')) {
+                transactions = transactions.filter(t => t.id !== activeCardId);
+                localStorage.setItem('transactions', JSON.stringify(transactions));
+                deleteTransactionFromFirebase(activeCardId);
+                init();
+                updateDashboard();
+                toggleActionModal();
+                console.log('Transação deletada:', activeCardId);
+            }
         }
 
-        form.addEventListener('submit', addTransaction);
+        // ===== FORMULÁRIO DE TRANSAÇÕES =====
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const transaction = {
+                id: editingTransactionId || Date.now().toString(),
+                description: descriptionInput.value,
+                date: dateInput.value,
+                amount: amountInput.value,
+                type: typeInput.value,
+                category: categoryInput.value,
+                timestamp: new Date().toISOString()
+            };
 
-        window.addEventListener('load', () => {
-            const stored = localStorage.getItem('transactions');
-            if (stored) transactions = JSON.parse(stored);
-            calculateBalances();
-            handleTypeChange();
+            if (editingTransactionId) {
+                const index = transactions.findIndex(t => t.id === editingTransactionId);
+                if (index !== -1) {
+                    transactions[index] = transaction;
+                }
+                editingTransactionId = null;
+            } else {
+                transactions.push(transaction);
+            }
+
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            saveTransactionToFirebase(transaction);
+            
+            form.reset();
             setDefaultDate();
+            handleTypeChange();
             init();
+            updateDashboard();
+            console.log('Transação salva:', transaction);
         });
+
+        // ===== INICIALIZAÇÃO =====
+        function loadFromLocalStorage() {
+            const stored = localStorage.getItem('transactions');
+            if (stored) {
+                transactions = JSON.parse(stored);
+                console.log('Transações carregadas do localStorage');
+            }
+            const savedSyncKey = localStorage.getItem('syncKey');
+            if (savedSyncKey) {
+                syncKeyInput.value = savedSyncKey;
+                // Reconecta automaticamente se havia uma chave salva
+                setTimeout(() => {
+                    connectToFirebase();
+                }, 500);
+            }
+        }
+
+        // Inicializa categorias
+        handleTypeChange();
+        setDefaultDate();
+        loadFromLocalStorage();
+        init();
+        updateDashboard();
     </script>
 </body>
 </html>
