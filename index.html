@@ -3,16 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Controle Financeiro</title>
+    <title>BellaZo - Controle Financeiro</title>
     
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1A3C38">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BellaZo">
     
-    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-    
-    <link class="favicon-png" rel="icon" type="image/png" sizes="192x192" href="1000320254.png">
-    <link class="favicon-png" rel="icon" type="image/png" sizes="512x512" href="1000320254.png">
-    <link class="manifest" href="manifest.json">
+    <link rel="shortcut icon" href="bellazo_icon.png" type="image/png">
+    <link rel="icon" type="image/png" sizes="192x192" href="bellazo_icon.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="bellazo_icon.png">
+    <link rel="apple-touch-icon" href="bellazo_icon.png">
+    <link rel="manifest" href="manifest.json">
 
     <!-- Importação da Fonte Cabin -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -253,6 +256,14 @@
             margin-top: 4px;
             font-weight: 600;
             text-align: center;
+        }
+
+        .sync-status.success {
+            color: var(--verde);
+        }
+
+        .sync-status.error {
+            color: var(--expense);
         }
 
         /* --- DASHBOARD E CARDS --- */
@@ -671,6 +682,33 @@
             letter-spacing: 0.3px;
         }
         .btn-danger-clear:hover { background-color: rgba(186, 26, 26, 0.05); }
+
+        /* --- BOTÃO DE INSTALAÇÃO PWA --- */
+        #install-btn {
+            display: none;
+            padding: 12px 20px;
+            background-color: var(--verde);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        #install-btn.visible {
+            display: block;
+        }
+
+        #install-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        #install-btn:active {
+            background-color: rgba(0, 180, 102, 0.8);
+        }
     </style>
 </head>
 <body>
@@ -717,14 +755,11 @@
                 <div class="container">
                     <header>
                         <h1>Controle Financeiro</h1>                        
-    <button class="sync-icon-btn" id="menu-toggle-btn" onclick="toggleModal()" title="Sincronizar">
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-    </svg>
-</button>
-
-</button>
-
+                        <button class="sync-icon-btn" id="menu-toggle-btn" onclick="toggleModal()" title="Sincronizar">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                            </svg>
+                        </button>
                     </header>
 
                     <!-- DASHBOARD -->
@@ -742,6 +777,9 @@
                             <p id="expense-display">R$ 0,00</p>
                         </div>
                     </div>
+
+                    <!-- BOTÃO DE INSTALAÇÃO PWA -->
+                    <button id="install-btn" onclick="installPWA()">📱 INSTALAR NA TELA INICIAL</button>
 
                     <!-- FORMULÁRIO -->
                     <div class="form-container">
@@ -840,6 +878,50 @@
     </div>
 
     <script>
+        // ===== REGISTRAR SERVICE WORKER =====
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registrado com sucesso:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Erro ao registrar Service Worker:', error);
+                    });
+            });
+        }
+
+        // ===== PWA INSTALLATION HANDLER =====
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-btn').classList.add('visible');
+        });
+
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('PWA instalado com sucesso!');
+                        document.getElementById('install-btn').classList.remove('visible');
+                    } else {
+                        console.log('Usuário recusou a instalação');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        }
+
+        window.addEventListener('appinstalled', () => {
+            console.log('BellaZo foi instalado!');
+            document.getElementById('install-btn').classList.remove('visible');
+            deferredPrompt = null;
+        });
+
+        // ===== FIREBASE CONFIGURATION =====
         const firebaseConfig = {
           apiKey: "AIzaSyCTC8A9FYStJBNHh-L4-qM7S7t3qqRBdCU",
           authDomain: "controle-financeiro-19ae8.firebaseapp.com",
@@ -898,8 +980,179 @@
         let database = null;
         let currentRef = null;
         let editingTransactionId = null;
-        let activeCardId = null; // Guarda o id do card ativo selecionado
+        let activeCardId = null;
+        let isOnline = navigator.onLine;
 
+        // Monitorar conexão
+        window.addEventListener('online', () => {
+            isOnline = true;
+            console.log('Conexão restaurada');
+            syncStatus.textContent = 'Online - Sincronizando...';
+            syncStatus.classList.remove('error');
+            syncStatus.classList.add('success');
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            console.log('Conexão perdida');
+            syncStatus.textContent = 'Offline - Dados salvos localmente';
+            syncStatus.classList.remove('success');
+            syncStatus.classList.add('error');
+        });
+
+        // ===== FUNÇÕES DE SINCRONIZAÇÃO =====
+                function connectToFirebase() {
+    const syncKey = syncKeyInput.value.trim();
+    
+    if (!syncKey) {
+        syncStatus.textContent = '❌ Digite uma chave válida';
+        syncStatus.classList.add('error');
+        syncStatus.classList.remove('success');
+        return;
+    }
+
+    try {
+        // CORREÇÃO: Só inicializa se não houver nenhum app ativo rodando
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        database = firebase.database();
+        
+        // Define a referência com base na chave fornecida
+        currentRef = database.ref('users/' + syncKey + '/transactions');
+        
+        syncStatus.textContent = '⏳ Conectando...';
+        // ... o restante da sua função continua igualzinha abaixo
+
+ syncStatus.classList.remove('error', 'success');
+
+                // Testa conexão
+                currentRef.limitToLast(1).once('value', (snapshot) => {
+                    syncStatus.textContent = '✅ Sincronização ativa!';
+                    syncStatus.classList.add('success');
+                    syncStatus.classList.remove('error');
+                    
+                    console.log('Conexão estabelecida com a chave:', syncKey);
+                    localStorage.setItem('syncKey', syncKey);
+                    
+                    // Carrega dados do Firebase
+                    loadTransactionsFromFirebase();
+                    
+                    // Configura listener em tempo real
+                    setupRealtimeListener();
+                    
+                    // Fecha o modal após 2 segundos
+                    setTimeout(() => {
+                        closeModal();
+                    }, 2000);
+                    
+                }, (error) => {
+                    syncStatus.textContent = '❌ Erro: ' + error.message;
+                    syncStatus.classList.add('error');
+                    syncStatus.classList.remove('success');
+                    console.error('Erro de conexão:', error);
+                });
+
+            } catch (error) {
+                syncStatus.textContent = '❌ Erro ao conectar: ' + error.message;
+                syncStatus.classList.add('error');
+                syncStatus.classList.remove('success');
+                console.error('Erro:', error);
+            }
+        }
+
+        function loadTransactionsFromFirebase() {
+            if (!currentRef) return;
+            
+            currentRef.once('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    transactions = Object.values(data);
+                    localStorage.setItem('transactions', JSON.stringify(transactions));
+                    init();
+                    updateDashboard();
+                    console.log('Transações carregadas do Firebase:', transactions.length);
+                }
+            });
+        }
+
+        function setupRealtimeListener() {
+            if (!currentRef) return;
+            
+            currentRef.on('child_added', (snapshot) => {
+                const newTransaction = snapshot.val();
+                if (!transactions.find(t => t.id === newTransaction.id)) {
+                    transactions.push(newTransaction);
+                    localStorage.setItem('transactions', JSON.stringify(transactions));
+                    init();
+                    updateDashboard();
+                    console.log('Nova transação sincronizada:', newTransaction);
+                }
+            });
+
+            currentRef.on('child_removed', (snapshot) => {
+                const removedId = snapshot.val().id;
+                transactions = transactions.filter(t => t.id !== removedId);
+                localStorage.setItem('transactions', JSON.stringify(transactions));
+                init();
+                updateDashboard();
+                console.log('Transação removida sincronizada:', removedId);
+            });
+        }
+
+        function saveTransactionToFirebase(transaction) {
+            if (!currentRef || !isOnline) {
+                console.log('Firebase não disponível ou offline. Dado será sincronizado quando conectado.');
+                return;
+            }
+
+            const transactionId = transaction.id || Date.now().toString();
+            transaction.id = transactionId;
+            
+            currentRef.child(transactionId).set(transaction)
+                .then(() => {
+                    console.log('Transação salva no Firebase:', transactionId);
+                })
+                .catch((error) => {
+                    console.error('Erro ao salvar no Firebase:', error);
+                });
+        }
+
+        function deleteTransactionFromFirebase(transactionId) {
+            if (!currentRef || !isOnline) {
+                console.log('Firebase não disponível ou offline.');
+                return;
+            }
+
+            currentRef.child(transactionId).remove()
+                .then(() => {
+                    console.log('Transação deletada do Firebase:', transactionId);
+                })
+                .catch((error) => {
+                    console.error('Erro ao deletar do Firebase:', error);
+                });
+        }
+
+        // ===== MODAIS =====
+        function toggleModal() {
+            modal.classList.toggle('active');
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== modal) return;
+            modal.classList.remove('active');
+        }
+
+        function toggleActionModal() {
+            actionModal.classList.toggle('active');
+        }
+
+        function closeActionModal(event) {
+            if (event && event.target !== actionModal) return;
+            actionModal.classList.remove('active');
+        }
+
+        // ===== FUNÇÕES AUXILIARES =====
         function scrollToPageOne() {
             document.getElementById('app-viewport').scrollTo({ left: 0, behavior: 'smooth' });
         }
@@ -948,304 +1201,207 @@
 
         function updateFilterCatLabel(select) {
             const label = document.getElementById('filter-cat-label');
-            label.textContent = select.options[select.selectedIndex]?.text || 'Categoria';
             if (select.value) {
+                label.textContent = select.value;
                 label.classList.remove('placeholder');
             } else {
+                label.textContent = 'Categoria';
                 label.classList.add('placeholder');
             }
             init();
         }
 
-        function toggleModal() {
-            modal.classList.toggle('active');
-        }
-
-        function closeModal(event) {
-            if (event.target === modal) {
-                toggleModal();
-            }
-        }
-
-        // Controle do novo Menu de Ações
-        function toggleActionModal() {
-            actionModal.classList.toggle('active');
-        }
-
-        function closeActionModal(event) {
-            if (event.target === actionModal) {
-                toggleActionModal();
-            }
-        }
-
-        function openCardActions(id, description) {
-            activeCardId = id;
-            actionTitle.textContent = `Lançamento: "${description}"`;
-            toggleActionModal();
-        }
-
-        function triggerCardEdit() {
-            toggleActionModal();
-            if (activeCardId) editTransaction(activeCardId);
-        }
-
-        function triggerCardDelete() {
-            toggleActionModal();
-            if (activeCardId) deleteTransaction(activeCardId);
-        }
-
         function handleTypeChange() {
-            const type = typeInput.value;
-            categoryInput.innerHTML = '';
-            const categories = type === 'expense' ? expenseCategories : incomeCategories;
-            
-            categories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = cat;
-                categoryInput.appendChild(opt);
-            });
             updateFormTypeLabel();
+            const newType = typeInput.value;
+            categoryInput.innerHTML = '';
+            const categories = newType === 'income' ? incomeCategories : expenseCategories;
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categoryInput.appendChild(option);
+            });
             updateFormCategoryLabel();
         }
 
-        function populateCategoryFilter() {
-            const filterCat = document.getElementById('filter-cat');
-            const currentSelection = filterCat.value;
-            filterCat.innerHTML = '<option value="">Categoria</option>';
-            
-            const allCategories = [...new Set([...expenseCategories, ...incomeCategories])];
-            allCategories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = cat;
-                filterCat.appendChild(opt);
-            });
-            filterCat.value = currentSelection;
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value);
         }
 
-        function connectToFirebase() {
-            const key = syncKeyInput.value.trim();
-            if (!key) {
-                syncStatus.textContent = "Digite uma chave válida.";
-                return;
-            }
-            localStorage.setItem('sync_key', key);
-            initializeDatabase(key);
-        }
-
-        function initializeDatabase(key) {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            database = firebase.database();
-            currentRef = database.ref('financas/' + key);
-            syncStatus.textContent = "Conectado com sucesso!";
-            
-            currentRef.on('value', snapshot => {
-                const data = snapshot.val();
-                transactions = [];
-                if (data) {
-                    for (let id in data) {
-                        transactions.push({ id, ...data[id] });
-                    }
+        function updateDashboard() {
+            let totalIncome = 0, totalExpense = 0;
+            transactions.forEach(t => {
+                const amount = parseFloat(t.amount) || 0;
+                if (t.type === 'income') {
+                    totalIncome += amount;
+                } else {
+                    totalExpense += amount;
                 }
-                populateCategoryFilter();
-                init();
+            });
+            const balance = totalIncome - totalExpense;
+            balanceDisplay.textContent = formatCurrency(balance);
+            incomeDisplay.textContent = formatCurrency(totalIncome);
+            expenseDisplay.textContent = formatCurrency(totalExpense);
+        }
+
+        function renderTransactions(transactionsToRender) {
+            transactionList.innerHTML = '';
+            transactionsToRender.forEach(t => {
+                const date = new Date(t.date);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = monthsShort[date.getMonth()];
+                const metadata = categoryMetadata[t.category] || { icon: '📦', bg: '#C2C2C2' };
+                const amountText = formatCurrency(t.amount);
+                
+                const card = document.createElement('div');
+                card.className = 't-item-card';
+                card.onclick = () => {
+                    activeCardId = t.id;
+                    toggleActionModal();
+                };
+                card.innerHTML = `
+                    <div class="t-card-left">
+                        <div class="t-status-dot ${t.type}"></div>
+                        <div class="t-date-block">
+                            <div class="t-date-day">${day}</div>
+                            <div class="t-date-month">${month}</div>
+                        </div>
+                        <div class="t-icon-circle">${metadata.icon}</div>
+                        <div class="t-info-block">
+                            <div class="t-meta-category">${t.category}</div>
+                            <div class="t-main-description">${t.description}</div>
+                        </div>
+                    </div>
+                    <div class="t-card-right ${t.type}">${amountText}</div>
+                `;
+                transactionList.appendChild(card);
             });
         }
 
         function init() {
-            const filterDescValue = document.getElementById('filter-desc').value.toLowerCase();
-            const filterCatValue = document.getElementById('filter-cat').value;
-            const filterDateValue = document.getElementById('filter-date').value;
-
-            transactions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-            const filteredTransactions = transactions.filter(t => {
-                const matchesDesc = t.description.toLowerCase().includes(filterDescValue);
-                const matchesCat = !filterCatValue || t.category === filterCatValue;
-                const matchesDate = !filterDateValue || t.date === filterDateValue;
-                return matchesDesc && matchesCat && matchesDate;
+            const filterDesc = document.getElementById('filter-desc').value.toLowerCase();
+            const filterDate = document.getElementById('filter-date').value;
+            const filterCat = document.getElementById('filter-cat').value;
+            
+            let filtered = transactions.filter(t => {
+                const matchDesc = t.description.toLowerCase().includes(filterDesc);
+                const matchDate = !filterDate || t.date.startsWith(filterDate);
+                const matchCat = !filterCat || t.category === filterCat;
+                return matchDesc && matchDate && matchCat;
             });
-
-            if (filterCatValue || filterDateValue || filterDescValue) {
-                const totalFiltered = filteredTransactions.reduce((acc, curr) => {
-                    return curr.type === 'income' ? acc + parseFloat(curr.amount) : acc - parseFloat(curr.amount);
-                }, 0);
-                
-                filterTotalDisplay.textContent = `R$ ${Math.abs(totalFiltered).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            } else {
-                filterTotalDisplay.textContent = `R$ 0,00`;
-            }
-
-            renderCards(filteredTransactions);
-            updateDashboard();
-        }
-        // PROCESSA E RENDERIZA OS CARDS REPLICANDO 1000325501.PNG
-        function renderCards(filtered) {
-            transactionList.innerHTML = '';
             
-            if(filtered.length === 0) {
-                transactionList.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-secondary); font-size:15px;">Nenhum lançamento encontrado.</div>`;
-                return;
-            }
-
-            filtered.forEach(t => {
-                const isIncome = t.type === 'income';
-                
-                // Formata o bloco empilhado de data (Dia e Abreviação do Mês)
-                let dayStr = "00";
-                let monthStr = "---";
-                if (t.date) {
-                    const parts = t.date.split('-');
-                    if (parts.length === 3) {
-                        dayStr = parts[2];
-                        const mIndex = parseInt(parts[1], 10) - 1;
-                        monthStr = monthsShort[mIndex] || "---";
-                    }
-                }
-
-                // Resgata o ícone e a cor correspondente da categoria
-                const meta = categoryMetadata[t.category] || { icon: "📦", bg: "#C2C2C2" };
-                
-                // Formata o valor numérico
-                const formattedAmount = parseFloat(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-                const displayAmount = `${isIncome ? '' : '-'}${formattedAmount}`;
-
-                // Cria o elemento estruturado do card vindo direto da foto
-                const cardDiv = document.createElement('div');
-                cardDiv.className = 't-item-card';
-                // Adiciona o gatilho inteligente de clique em todo o corpo do card
-                cardDiv.setAttribute('onclick', `openCardActions('${t.id}', '${t.description.replace(/'/g, "\\'")}')`);
-                
-                cardDiv.innerHTML = `
-                    <div class="t-card-left">
-                        <div class="t-status-dot ${t.type}"></div>
-                        <div class="t-date-block">
-                            <span class="t-date-day">${dayStr}</span>
-                            <span class="t-date-month">${monthStr}</span>
-                        </div>
-                        <div class="t-icon-circle" style="background-color: ${meta.bg};">
-                            ${meta.icon}
-                        </div>
-                        <div class="t-info-block">
-                            <span class="t-meta-category">${t.category}</span>
-                            <span class="t-main-description">${t.description}</span>
-                        </div>
-                    </div>
-                    <div class="t-card-right ${t.type}">
-                        ${displayAmount}
-                    </div>
-                `;
-                transactionList.appendChild(cardDiv);
-            });
-        }
-
-        function updateDashboard() {
-            let income = 0;
-            let expense = 0;
-
-            transactions.forEach(t => {
-                if (t.type === 'income') income += parseFloat(t.amount);
-                else expense += parseFloat(t.amount);
-            });
-
-            const balance = income - expense;
-
-            balanceDisplay.textContent = `R$ ${balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-            incomeDisplay.textContent = `R$ ${income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-            expenseDisplay.textContent = `R$ ${expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-        }
-
-        form.addEventListener('submit', event => {
-            event.preventDefault();
-            
-            const data = {
-                description: descriptionInput.value,
-                date: dateInput.value,
-                amount: parseFloat(amountInput.value),
-                type: typeInput.value,
-                category: categoryInput.value
-            };
-
-            if (editingTransactionId) {
-                if (currentRef) {
-                    currentRef.child(editingTransactionId).set(data);
-                } else {
-                    const idx = transactions.findIndex(t => t.id === editingTransactionId);
-                    transactions[idx] = { id: editingTransactionId, ...data };
-                    init();
-                }
-                editingTransactionId = null;
-                btnSubmitForm.textContent = 'ADICIONAR';
-            } else {
-                if (currentRef) {
-                    currentRef.push(data);
-                } else {
-                    transactions.push({ id: Date.now().toString(), ...data });
-                    init();
-                }
-            }
-
-            form.reset();
-            handleTypeChange();
-            setDefaultDate();
-        });
-
-        function editTransaction(id) {
-            const t = transactions.find(item => item.id === id);
-            if (!t) return;
-
-            descriptionInput.value = t.description;
-            dateInput.value = t.date || '';
-            amountInput.value = t.amount;
-            typeInput.value = t.type;
-            handleTypeChange();
-            categoryInput.value = t.category;
-            
-            updateFormDateLabel(dateInput);
-            updateFormTypeLabel();
-            updateFormCategoryLabel();
-            
-            editingTransactionId = id;
-            btnSubmitForm.textContent = 'SALVAR ALTERAÇÃO';
-            
-            scrollToPageOne();
-        }
-
-        function deleteTransaction(id) {
-            if (!confirm("Excluir esta transação?")) return;
-            if (currentRef) {
-                currentRef.child(id).remove();
-            } else {
-                transactions = transactions.filter(t => t.id !== id);
-                init();
-            }
+            const total = filtered.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+            filterTotalDisplay.textContent = formatCurrency(total);
+            renderTransactions(filtered);
         }
 
         function clearAllHistory() {
-            if (!confirm("AVISO: Isso apagará TODO o seu histórico de transações. Continuar?")) return;
-            if (currentRef) {
-                currentRef.remove();
-            } else {
+            if (confirm('Tem certeza que deseja excluir todo o histórico?')) {
                 transactions = [];
+                localStorage.removeItem('transactions');
+                if (currentRef) {
+                    currentRef.remove();
+                }
                 init();
+                updateDashboard();
+                console.log('Histórico limpo');
             }
         }
 
+        function triggerCardEdit() {
+            if (!activeCardId) return;
+            const transaction = transactions.find(t => t.id === activeCardId);
+            if (transaction) {
+                descriptionInput.value = transaction.description;
+                dateInput.value = transaction.date;
+                amountInput.value = transaction.amount;
+                typeInput.value = transaction.type;
+                handleTypeChange();
+                categoryInput.value = transaction.category;
+                updateFormDateLabel(dateInput);
+                updateFormTypeLabel();
+                updateFormCategoryLabel();
+                editingTransactionId = activeCardId;
+                toggleActionModal();
+                scrollToPageOne();
+            }
+        }
+
+        function triggerCardDelete() {
+            if (!activeCardId) return;
+            if (confirm('Tem certeza que deseja excluir este lançamento?')) {
+                transactions = transactions.filter(t => t.id !== activeCardId);
+                localStorage.setItem('transactions', JSON.stringify(transactions));
+                deleteTransactionFromFirebase(activeCardId);
+                init();
+                updateDashboard();
+                toggleActionModal();
+                console.log('Transação deletada:', activeCardId);
+            }
+        }
+
+        // ===== FORMULÁRIO DE TRANSAÇÕES =====
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const transaction = {
+                id: editingTransactionId || Date.now().toString(),
+                description: descriptionInput.value,
+                date: dateInput.value,
+                amount: amountInput.value,
+                type: typeInput.value,
+                category: categoryInput.value,
+                timestamp: new Date().toISOString()
+            };
+
+            if (editingTransactionId) {
+                const index = transactions.findIndex(t => t.id === editingTransactionId);
+                if (index !== -1) {
+                    transactions[index] = transaction;
+                }
+                editingTransactionId = null;
+            } else {
+                transactions.push(transaction);
+            }
+
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            saveTransactionToFirebase(transaction);
+            
+            form.reset();
+            setDefaultDate();
+            handleTypeChange();
+            init();
+            updateDashboard();
+            console.log('Transação salva:', transaction);
+        });
+
+        // ===== INICIALIZAÇÃO =====
+        function loadFromLocalStorage() {
+            const stored = localStorage.getItem('transactions');
+            if (stored) {
+                transactions = JSON.parse(stored);
+                console.log('Transações carregadas do localStorage');
+            }
+            const savedSyncKey = localStorage.getItem('syncKey');
+            if (savedSyncKey) {
+                syncKeyInput.value = savedSyncKey;
+                // Reconecta automaticamente se havia uma chave salva
+                setTimeout(() => {
+                    connectToFirebase();
+                }, 500);
+            }
+        }
+
+        // Inicializa categorias
         handleTypeChange();
         setDefaultDate();
-        
-        const savedKey = localStorage.getItem('sync_key');
-        if (savedKey) {
-            syncKeyInput.value = savedKey;
-            initializeDatabase(savedKey);
-        } else {
-            syncStatus.textContent = "Modo Local (Sem nuvem conectada).";
-            populateCategoryFilter();
-            init();
-        }
+        loadFromLocalStorage();
+        init();
+        updateDashboard();
     </script>
 </body>
 </html>
