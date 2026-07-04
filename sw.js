@@ -1,13 +1,13 @@
 // Service Worker para BellaZo - Suporte Offline e Sincronização
-const CACHE_NAME = 'bellazo-v2';
+const CACHE_NAME = 'bellazo-v3';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/bellazo_icon.png'
+  './',
+  'index.html',
+  'manifest.json',
+  'bellazo_icon.png'
 ];
 
-// Instalar o Service Worker e cachear arquivos
+// Instalar o Service Worker e cachear arquivos base
 self.addEventListener('install', event => {
   console.log('Service Worker instalando...');
   event.waitUntil(
@@ -18,7 +18,6 @@ self.addEventListener('install', event => {
           console.log('Alguns arquivos não puderam ser cacheados:', err);
         });
       })
-      .catch(err => console.log('Erro ao abrir cache:', err))
   );
   self.skipWaiting();
 });
@@ -41,33 +40,16 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Estratégia de cache-first com fallback para rede
+// Estratégia de Cache-First com ignorancia total ao Firebase
 self.addEventListener('fetch', event => {
-  // Ignorar requisições não-GET
-  if (event.request.method !== 'GET') {
-    return;
-  }
+  if (event.request.method !== 'GET') return;
 
-  // Para requisições do Firebase, usar network-first
+  // REGRA DE OURO: Se for requisição do Firebase ou Google APIs, saia imediatamente.
+  // Deixe a rede processar direto sem passar pelo interceptador do Service Worker.
   if (event.request.url.includes('firebasedatabase') || event.request.url.includes('googleapis')) {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          if (!response || response.status !== 200) {
-            return response;
-          }
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-    return;
+    return; 
   }
 
-  // Para outros recursos, usar cache-first
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -82,29 +64,13 @@ self.addEventListener('fetch', event => {
             }
 
             const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
 
             return response;
           })
-          .catch(() => caches.match('/index.html'));
+          .catch(() => caches.match('index.html'));
       })
   );
 });
-
-// Sincronização em background
-self.addEventListener('sync', event => {
-  if (event.tag === 'sync-transactions') {
-    event.waitUntil(syncTransactions());
-  }
-});
-
-async function syncTransactions() {
-  try {
-    console.log('Sincronizando transações em background...');
-  } catch (error) {
-    console.log('Erro na sincronização:', error);
-  }
-}
