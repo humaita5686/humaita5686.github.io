@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Lembretes Personalizados</title>
-    <!-- Importando a fonte Cabin do Google Fonts -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&display=swap">
     <style>
         * {
@@ -30,19 +29,17 @@
 
         .card-cadastro {
             background: #ffffff;
-            border-radius: 30px;
+            border-radius: 16px;
             padding: 24px;
-            text-transform: uppercase;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
             margin-bottom: 24px;
         }
 
         h2 {
-            font-size: 25px;
+            font-size: 20px;
             font-weight: 600;
             color: #1a73e8;
             margin-bottom: 20px;
-            text-align: center;
         }
 
         .input-group {
@@ -74,7 +71,7 @@
             width: 100%;
             padding: 12px 14px;
             border: 1px solid #dadce0;
-            border-radius: 15px;
+            border-radius: 8px;
             font-size: 16px;
             outline: none;
             background-color: #fff;
@@ -90,7 +87,7 @@
             background-color: #1a73e8;
             color: white;
             border: none;
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 14px;
             font-size: 16px;
             font-weight: 600;
@@ -183,7 +180,7 @@
                 </select>
             </div>
 
-            <button class="btn-salvar" onclick="salvarLembrete()">Salvar Lembrete</button>
+            <button class="btn-salvar" onclick="solicitarPermissaoESalvar()">Salvar Lembrete</button>
         </div>
 
         <!-- Lista de Lembretes -->
@@ -195,15 +192,33 @@
         const diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-                Notification.requestPermission();
-            }
             const hoje = new Date();
             document.getElementById('data').value = hoje.toISOString().split('T')[0];
             
             carregarLembretes();
             verificarHorariosContinuamente();
         });
+
+        // Solicita a permissão vinculada ao CLIQUE do botão
+        function solicitarPermissaoESalvar() {
+            if (!("Notification" in window)) {
+                alert("Este navegador não suporta notificações de sistema.");
+                salvarLembrete();
+                return;
+            }
+
+            if (Notification.permission === "default") {
+                Notification.requestPermission().then(permissao => {
+                    alert("Status da permissão escolhida: " + permissao);
+                    salvarLembrete();
+                });
+            } else {
+                if (Notification.permission === "denied") {
+                    alert("As notificações estão bloqueadas nas configurações do seu navegador/celular para este site!");
+                }
+                salvarLembrete();
+            }
+        }
 
         function salvarLembrete() {
             const tarefaInput = document.getElementById('tarefa');
@@ -233,6 +248,9 @@
             horarioInput.value = '';
             
             carregarLembretes();
+            
+            // Teste imediato: tenta disparar uma notificação de confirmação para ver se funciona
+            dispararNotificacao("Lembrete agendado com sucesso!");
         }
 
         function carregarLembretes() {
@@ -331,7 +349,7 @@
         function dispararNotificacao(mensagem) {
             if (Notification.permission === "granted") {
                 new Notification("Lembrete de Tarefa!", {
-                    body: message = mensagem,
+                    body: mensagem,
                     icon: "https://cdn-icons-png.flaticon.com/512/1792/1792931.png"
                 });
             }
